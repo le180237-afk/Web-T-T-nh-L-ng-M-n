@@ -94,6 +94,15 @@
     <!-- Toast Message (Thông báo cho người dùng) -->
     <div id="toast-message"></div>
 
+    <!-- AUDIO FIX OVERLAY (MỚI) - Hiển thị khi Autoplay bị chặn -->
+    <div id="audio-fix-prompt" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center cursor-pointer p-4">
+        <div class="bg-white p-6 rounded-xl shadow-2xl text-center transition-all duration-300 transform hover:scale-105">
+            <p class="text-4xl mb-4">🔊</p>
+            <p class="text-2xl text-red-600 font-bold mb-2">Âm thanh bị chặn!</p>
+            <p class="text-gray-700 font-medium">Bấm vào bất kỳ đâu trên hộp này để Mở Khóa âm thanh!</p>
+        </div>
+    </div>
+    
     <!-- Container chính --><div id="main-container" class="relative z-10 text-center p-8 md:p-12 bg-white/90 backdrop-blur-md rounded-3xl shadow-3xl transition-all duration-700 w-11/12 max-w-lg border-2 border-pink-200 animate-fade-in-down">
 
         <!-- Nội dung chính (Câu hỏi) --><h1 id="question-text" class="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-pink-600 mb-8 transition-all duration-700 leading-tight">
@@ -170,6 +179,7 @@
         const confessionContainer = document.getElementById('confession-container');
         const confessionAudio = document.getElementById('confession-audio');
         const toastMessage = document.getElementById('toast-message');
+        const audioFixPrompt = document.getElementById('audio-fix-prompt'); // Nút mở khóa âm thanh
         
         // Gemini API Constants and Elements
         const apiKey = "";
@@ -449,10 +459,10 @@
 
         // Xử lý khi bấm nút CÓ (Mục tiêu)
         function handleYesClick() {
-            // Đảm bảo âm thanh phát khi tương tác
+            // Đảm bảo âm thanh phát khi tương tác (đây là user gesture, nên sẽ hoạt động)
             if (confessionAudio.src) {
                 confessionAudio.play().catch(error => {
-                    console.error("Audio playback failed on YES click:", error);
+                    console.error("Audio playback failed on YES click (might be already playing or system error):", error);
                 });
             }
 
@@ -486,10 +496,22 @@
                 confessionAudio.play()
                     .then(() => {
                         showToast("🎶 Lời tỏ tình 'tôi yêu trang đàm ạ' đã được phát tự động. Rất lãng mạn!");
+                        audioFixPrompt.classList.add('hidden'); // Ẩn nếu thành công
                     })
                     .catch(error => {
-                        // 3. Autoplay blocked -> Show toast and rely on YES button click
-                        showToast("🔇 Trình duyệt đã chặn tự động phát. Đừng lo, âm thanh sẽ phát khi bạn bấm CHẮC CHẮN RỒI! 🥰");
+                        // 3. Autoplay blocked -> Show overlay prompt
+                        showToast("🔇 Trình duyệt đã chặn tự động phát. Hãy bấm vào màn hình để mở khóa âm thanh.");
+                        audioFixPrompt.classList.remove('hidden');
+                        
+                        // Add listener to unlock audio on first click on the prompt
+                        audioFixPrompt.onclick = function() {
+                            confessionAudio.play().then(() => {
+                                audioFixPrompt.classList.add('hidden');
+                                showToast("✅ Âm thanh đã được mở khóa!");
+                                // Remove the click listener after successful unlock
+                                audioFixPrompt.onclick = null; 
+                            }).catch(console.error);
+                        };
                         console.error("Autoplay blocked:", error);
                     });
             } else {
@@ -504,6 +526,7 @@
              const yesRect = yesButton.getBoundingClientRect();
              const mainRect = mainContainer.getBoundingClientRect();
 
+             // Đặt vị trí ban đầu của nút KHÔNG gần nút CÓ
              noButton.style.left = `${yesRect.right + 60 - mainRect.left}px`;
              noButton.style.top = `${yesRect.top + yesRect.height / 2 - noButton.offsetHeight / 2 - mainRect.top}px`;
              noButton.style.position = 'absolute';
