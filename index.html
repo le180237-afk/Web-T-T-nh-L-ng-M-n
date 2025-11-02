@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lời Mời Đặc Biệt ❤️</title>
+    <!-- Tải Tailwind CSS để styling --><script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts cho font chữ đẹp mắt --><link href="https://fonts.googleapis.com/css2?family=Pacifico&family=Quicksand:wght@300..700&display=swap" rel="stylesheet">
+    <style>
+        /* Thiết lập font cho toàn bộ trang */
+        body {
+            font-family: 'Quicksand', sans-serif;
+            background: linear-gradient(135deg, #f7d4e3 0%, #d4ebf7 100%); /* Gradient lãng mạn */
+            transition: background-color 0.5s ease;
+            overflow: hidden; /* Ngăn cuộn khi nút di chuyển */
+        }
+        h1, h2 {
+            font-family: 'Pacifico', cursive; /* Font chữ viết tay cho tiêu đề */
+        }
+        /* Class cho nút có thể di chuyển */
+        .movable-button {
+            transition: all 0.2s ease-out; /* Tạo chuyển động mượt */
+            position: absolute;
+            white-space: nowrap; /* Ngăn chữ bị ngắt dòng */
+        }
+        /* Hiệu ứng hạt rơi nhẹ nhàng */
+        .heart-particle {
+            position: absolute;
+            background-color: rgba(255, 105, 180, 0.7); /* Màu hồng */
+            border-radius: 50%;
+            animation: fall linear infinite;
+            pointer-events: none; /* Không chặn click */
+            opacity: 0;
+        }
+
+        @keyframes fall {
+            0% { transform: translateY(-10vh) scale(0.5); opacity: 0; }
+            10% { opacity: 1; }
+            100% { transform: translateY(100vh) scale(1.5); opacity: 0; }
+        }
+
+        /* Custom animation for heartbeat */
+        @keyframes heartbeat {
+            0% { transform: scale(1); }
+            25% { transform: scale(1.1); }
+            40% { transform: scale(1); }
+            60% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+        .animate-heartbeat {
+            animation: heartbeat 1s infinite;
+        }
+
+        /* Custom animation for fade in */
+        @keyframes fadeIn {
+            0% { opacity: 0; transform: translateY(20px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+            animation: fadeIn 1.5s ease-out forwards;
+        }
+
+        /* Custom animation for background pulse */
+        @keyframes bgPulse {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+        .animate-bg-pulse {
+            background-size: 200% 200%;
+            animation: bgPulse 10s ease infinite;
+        }
+
+        /* Spinner CSS */
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #ec4899; /* Pink-500 */
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-right: 8px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-center min-h-screen">
+
+    <!-- Container chính --><div id="main-container" class="relative z-10 text-center p-8 md:p-12 bg-white/90 backdrop-blur-md rounded-3xl shadow-3xl transition-all duration-700 w-11/12 max-w-lg border-2 border-pink-200 animate-fade-in-down">
+
+        <!-- Nội dung chính (Câu hỏi) --><h1 id="question-text" class="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-pink-600 mb-8 transition-all duration-700 leading-tight">
+            Chào bạn! Bạn có muốn cùng mình tạo nên một kỷ niệm đặc biệt cuối tuần này không?
+        </h1>
+
+        <!-- Khu vực chứa các nút tương tác --><div class="flex flex-col sm:flex-row justify-center items-center relative space-y-4 sm:space-y-0 sm:space-x-8 min-h-[120px] sm:min-h-[100px]">
+
+            <!-- Nút CÓ (Dễ dàng bấm) --><button id="yes-button" onclick="handleYesClick()"
+                class="px-10 py-4 bg-gradient-to-r from-green-400 to-emerald-500 text-white font-bold text-xl rounded-full shadow-lg hover:from-green-500 hover:to-emerald-600 transform hover:scale-105 transition-all duration-300 z-20 focus:outline-none focus:ring-4 focus:ring-green-300">
+                Chắc chắn RỒI! 🥰
+            </button>
+
+            <!-- Nút KHÔNG (Nút di chuyển) --><button id="no-button" onmouseover="moveNoButton()" onclick="handleNoClick()"
+                class="movable-button px-8 py-3 bg-gradient-to-r from-red-400 to-rose-500 text-white font-bold text-lg rounded-full shadow-md hover:from-red-500 hover:to-rose-600 transition-all duration-300 z-10 focus:outline-none focus:ring-4 focus:ring-red-300">
+                KHÔNG
+            </button>
+
+        </div>
+        
+        <!-- Tính năng Gemini: Lời Ngọt Ngào -->
+        <div class="mt-10 pt-4 border-t border-pink-200">
+            <h3 class="text-xl font-semibold text-pink-500 mb-3 font-quicksand">Thử vận may! Lời Ngọt Ngào ✨</h3>
+            <p id="gemini-compliment" class="text-lg text-gray-700 min-h-[40px] italic mb-4 p-2 bg-pink-50 rounded-lg border border-pink-100 shadow-inner flex items-center justify-center">
+                Hãy nhấn nút để nhận một câu nói lãng mạn bất ngờ!
+            </p>
+            <button id="generate-button" onclick="generateCompliment()"
+                class="px-6 py-2 bg-gradient-to-r from-purple-400 to-indigo-500 text-white font-bold rounded-full shadow-lg hover:from-purple-500 hover:to-indigo-600 transition duration-300 transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-purple-300 disabled:opacity-50">
+                Nhận Lời Mật Ngọt
+            </button>
+        </div>
+
+    </div>
+
+    <!-- Container chứa lời tỏ tình bí mật (Ban đầu ẩn) --><div id="confession-container" class="hidden fixed inset-0 bg-gradient-to-br from-pink-50 to-purple-100 flex flex-col items-center justify-center text-center p-8 z-20 animate-fade-in-bg">
+        <div class="relative bg-white p-10 md:p-12 rounded-3xl shadow-2xl max-w-lg animate-pulse-slow border-4 border-pink-300">
+            <p class="text-7xl mb-6 animate-bounce-custom">💖</p>
+            <h2 class="text-4xl md:text-5xl font-bold text-pink-700 mb-4 animate-fade-in">Bất Ngờ Chưa!</h2>
+            <p class="text-xl md:text-2xl text-gray-700 animate-fade-in animation-delay-500">
+                Thật ra, lời mời đi chơi chỉ là cái cớ thôi. Điều mình muốn nói là:
+            </p>
+            <p class="text-5xl md:text-6xl font-extrabold text-red-600 mt-6 animate-fade-in animation-delay-1000 leading-tight">
+                MÌNH THÍCH BẠN RẤT NHIỀU!
+            </p>
+            <p class="text-lg md:text-xl text-gray-600 mt-4 animate-fade-in animation-delay-1500">Hy vọng bạn cũng cảm thấy như vậy...</p>
+
+            <!-- Tính năng Gemini MỚI: Kế hoạch Hẹn Hò Bí Mật -->
+            <div class="mt-8 pt-4 border-t border-pink-200 w-full animate-fade-in animation-delay-2000">
+                <h3 class="text-2xl font-semibold text-purple-600 mb-3 font-quicksand">🎉 Kế Hoạch Đặc Biệt Cho Chúng Ta</h3>
+                <p id="gemini-date-idea" class="text-base text-gray-700 min-h-[50px] italic p-3 bg-purple-50 rounded-lg border border-purple-100 shadow-inner flex items-center justify-center">
+                    ... (Chờ ý tưởng) ...
+                </p>
+                <button id="date-idea-button" onclick="generateDateIdea()" disabled
+                    class="mt-3 px-6 py-2 bg-gradient-to-r from-purple-600 to-indigo-700 text-white font-bold rounded-full shadow-lg transition duration-300 transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-purple-400 disabled:opacity-50">
+                    Nhận Ý Tưởng Hẹn Hò Bất Ngờ
+                </button>
+            </div>
+
+            <div class="absolute -bottom-4 -right-4 bg-yellow-300 p-2 rounded-full transform rotate-12 shadow-lg">
+                <span class="text-2xl">😊</span>
+            </div>
+            <div class="absolute -top-4 -left-4 bg-blue-300 p-2 rounded-full transform -rotate-12 shadow-lg">
+                <span class="text-2xl">🌟</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const noButton = document.getElementById('no-button');
+        const mainContainer = document.getElementById('main-container');
+        const questionText = document.getElementById('question-text');
+        const yesButton = document.getElementById('yes-button');
+        const confessionContainer = document.getElementById('confession-container');
+        
+        // Gemini API Constants and Elements
+        const apiKey = "";
+        const apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=";
+        const complimentDisplay = document.getElementById('gemini-compliment');
+        const generateButton = document.getElementById('generate-button');
+        const dateIdeaDisplay = document.getElementById('gemini-date-idea');
+        const dateIdeaButton = document.getElementById('date-idea-button');
+
+
+        let moveCount = 0; // Đếm số lần nút KHÔNG bị di chuyển
+        const maxMoves = 6; // Số lần di chuyển trước khi chuyển sang màn tỏ tình
+
+        // --- HÀM HỖ TRỢ CHUNG ---
+
+        // Hàm hiển thị trạng thái Loading
+        function showLoading(element, text = "Đang tải...") {
+            element.innerHTML = `<span class="spinner"></span> ${text}`;
+        }
+
+        // Hàm hỗ trợ fetch với cơ chế exponential backoff retry
+        async function fetchWithRetry(url, options, maxRetries = 3) {
+            for (let i = 0; i < maxRetries; i++) {
+                try {
+                    const response = await fetch(url, options);
+                    if (!response.ok) {
+                        if (response.status === 429 && i < maxRetries - 1) {
+                            const delay = Math.pow(2, i) * 1000;
+                            await new Promise(resolve => setTimeout(resolve, delay));
+                            continue;
+                        }
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return await response.json();
+                } catch (error) {
+                    if (i === maxRetries - 1) {
+                        console.error("Fetch failed after multiple retries:", error);
+                        throw error;
+                    }
+                }
+            }
+        }
+        
+        // --- GEMINI API: TẠO LỜI NGỌT NGÀO (Pre-Confession) ---
+        async function generateCompliment() {
+            showLoading(complimentDisplay, "Đang nghĩ lời ngọt ngào... 💖");
+            generateButton.disabled = true;
+
+            const systemPrompt = "You are a Vietnamese romantic poet and sweet compliment generator. Generate a unique, short, and extremely sweet one-sentence compliment or romantic phrase in Vietnamese. It must be surprising and heartwarming. Do not include any title, introduction, or markdown formatting.";
+            const userQuery = "Viết một lời khen ngợi/tình cảm ngắn và bất ngờ dành cho người tôi yêu.";
+
+            const payload = {
+                contents: [{ parts: [{ text: userQuery }] }],
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+            };
+
+            try {
+                const result = await fetchWithRetry(`${apiUrl}${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const text = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+                if (text) {
+                    complimentDisplay.textContent = `"${text.trim()}"`;
+                } else {
+                    complimentDisplay.textContent = "Ôi không, lời ngọt ngào bị lạc rồi. Thử lại nhé!";
+                }
+
+            } catch (error) {
+                complimentDisplay.textContent = "Không thể tạo lời ngọt ngào lúc này. Vấn đề mạng hoặc API.";
+            } finally {
+                generateButton.disabled = false;
+            }
+        }
+
+        // --- GEMINI API: TẠO Ý TƯỞNG HẸN HÒ (Post-Confession) ---
+        async function generateDateIdea() {
+            showLoading(dateIdeaDisplay, "Đang tạo ra kế hoạch hẹn hò lãng mạn... 💌");
+            dateIdeaButton.disabled = true;
+
+            const systemPrompt = "You are a creative and romantic event planner. Generate a single, short, and unique date idea suitable for a first date in Vietnamese. The tone must be exciting and sweet. The idea must be creative and actionable. Do not include any title, introduction, or markdown formatting, just the idea.";
+            const userQuery = "Gợi ý một ý tưởng hẹn hò đầu tiên thật lãng mạn và độc đáo ở Việt Nam, không phải là đi xem phim hay ăn tối.";
+
+            const payload = {
+                contents: [{ parts: [{ text: userQuery }] }],
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+            };
+
+            try {
+                const result = await fetchWithRetry(`${apiUrl}${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const text = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+                if (text) {
+                    dateIdeaDisplay.textContent = `"${text.trim()}"`;
+                } else {
+                    dateIdeaDisplay.textContent = "Không thể nghĩ ra kế hoạch. Tự mình tạo nên kỷ niệm nhé!";
+                }
+
+            } catch (error) {
+                dateIdeaDisplay.textContent = "Lỗi kết nối. Không thể tạo ý tưởng hẹn hò.";
+            } finally {
+                dateIdeaButton.disabled = false;
+            }
+        }
+        // --- KẾT THÚC CÁC HÀM GEMINI API ---
+
+        // Hàm tạo hạt rơi
+        function createHeartParticle() {
+            const particle = document.createElement('div');
+            particle.classList.add('heart-particle');
+            document.body.appendChild(particle);
+
+            const size = Math.random() * 20 + 10; // Kích thước từ 10px đến 30px
+            particle.style.width = `${size}px`;
+            particle.style.height = `${size}px`;
+            particle.style.left = `${Math.random() * 100}vw`; // Vị trí ngẫu nhiên theo chiều ngang
+            particle.style.animationDuration = `${Math.random() * 3 + 2}s`; // Thời gian rơi ngẫu nhiên
+            particle.style.animationDelay = `${Math.random() * 2}s`; // Độ trễ ngẫu nhiên
+            
+            // Xóa hạt sau khi rơi xong
+            particle.addEventListener('animationend', () => {
+                particle.remove();
+            });
+        }
+
+        // Tạo hiệu ứng hạt rơi liên tục
+        setInterval(createHeartParticle, 300); // Mỗi 300ms tạo một hạt mới
+
+        // Hàm di chuyển nút KHÔNG ra xa chuột
+        function moveNoButton() {
+            if (moveCount >= maxMoves) {
+                noButton.textContent = "Bấm CÓ đi mà! 🥺";
+                return;
+            }
+
+            moveCount++;
+
+            const messages = [
+                "Ủa, sao né vậy? 🤔 Chắc có lý do chứ?",
+                "Chắc chắn chưa? Nghĩ kỹ nha, cơ hội hiếm có đó!",
+                "Thôi, đừng cứng đầu nữa mà 🥺. Bấm CÓ đi cho mình vui nè!",
+                "Nút CÓ ở ngay bên kia kìa, sao không bấm...?",
+                "Lần cuối nha! Cố gắng bấm CÓ đi, đừng để mình thất vọng!",
+                "Thôi được rồi, mình biết bạn muốn bấm CÓ mà. Hãy làm đi! ❤️",
+            ];
+            questionText.textContent = messages[moveCount - 1] || messages[0];
+            
+            const containerRect = mainContainer.getBoundingClientRect();
+            const buttonRect = noButton.getBoundingClientRect();
+
+            let newX, newY;
+            const padding = 20;
+
+            newX = Math.random() * (containerRect.width - buttonRect.width - 2 * padding) + padding;
+            newY = Math.random() * (containerRect.height - buttonRect.height - 2 * padding) + padding;
+
+            noButton.style.left = `${newX}px`;
+            noButton.style.top = `${newY}px`;
+            noButton.style.transform = 'translate(-50%, -50%)';
+        }
+
+        // Xử lý khi bấm nút KHÔNG (Tránh sự cố)
+        function handleNoClick() {
+            questionText.textContent = "Không bấm được đâu! Phải bấm CÓ cơ! 🥰";
+        }
+
+        // Xử lý khi bấm nút CÓ (Mục tiêu)
+        function handleYesClick() {
+            // Ẩn nội dung hiện tại và hiển thị lời tỏ tình
+            mainContainer.classList.add('opacity-0', 'scale-90');
+            setTimeout(() => {
+                mainContainer.classList.add('hidden');
+                document.body.classList.remove('bg-gray-50');
+                document.body.classList.add('bg-pink-100');
+                confessionContainer.classList.remove('hidden');
+                confessionContainer.classList.add('animate-fade-in');
+                
+                // Kích hoạt tính năng Hẹn Hò Bí Mật sau khi tỏ tình
+                dateIdeaButton.disabled = false;
+                generateDateIdea(); 
+            }, 500);
+        }
+
+        // Thiết lập vị trí ban đầu cho nút KHÔNG khi tải trang
+        window.onload = () => {
+             const yesRect = yesButton.getBoundingClientRect();
+             const mainRect = mainContainer.getBoundingClientRect();
+
+             noButton.style.left = `${yesRect.right + 60 - mainRect.left}px`;
+             noButton.style.top = `${yesRect.top + yesRect.height / 2 - noButton.offsetHeight / 2 - mainRect.top}px`;
+             noButton.style.position = 'absolute';
+             noButton.style.transform = 'none';
+        }
+
+        // Các keyframes tùy chỉnh (có thể thêm vào file CSS riêng hoặc thẻ <style>)
+        const styleSheet = document.createElement("style");
+        styleSheet.type = "text/css";
+        styleSheet.innerHTML += `
+            @keyframes fade-in-down {
+                0% { opacity: 0; transform: translateY(-20px); }
+                100% { opacity: 1; transform: translateY(0); }
+            }
+            .animate-fade-in-down {
+                animation: fade-in-down 1s ease-out forwards;
+            }
+            @keyframes fade-in-bg {
+                0% { opacity: 0; }
+                100% { opacity: 1; }
+            }
+            .animate-fade-in-bg {
+                animation: fade-in-bg 1s ease-out forwards;
+            }
+            .shadow-3xl {
+                box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 10px rgba(255, 192, 203, 0.3);
+            }
+        `;
+        document.head.appendChild(styleSheet);
+
+    </script>
+</body>
+</html>
