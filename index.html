@@ -39,18 +39,6 @@
             100% { transform: translateY(100vh) scale(1.5); opacity: 0; }
         }
 
-        /* Custom animation for heartbeat */
-        @keyframes heartbeat {
-            0% { transform: scale(1); }
-            25% { transform: scale(1.1); }
-            40% { transform: scale(1); }
-            60% { transform: scale(1.1); }
-            100% { transform: scale(1); }
-        }
-        .animate-heartbeat {
-            animation: heartbeat 1s infinite;
-        }
-
         /* Custom animation for fade in */
         @keyframes fadeIn {
             0% { opacity: 0; transform: translateY(20px); }
@@ -59,17 +47,7 @@
         .animate-fade-in {
             animation: fadeIn 1.5s ease-out forwards;
         }
-
-        /* Custom animation for background pulse */
-        @keyframes bgPulse {
-            0%, 100% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-        }
-        .animate-bg-pulse {
-            background-size: 200% 200%;
-            animation: bgPulse 10s ease infinite;
-        }
-
+        
         /* Spinner CSS */
         .spinner {
             border: 4px solid #f3f3f3;
@@ -86,9 +64,35 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+
+        /* Toast Message CSS */
+        #toast-message {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 10px 20px;
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            border-radius: 8px;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.5s, transform 0.5s;
+            pointer-events: none;
+        }
+        #toast-message.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(-10px);
+        }
     </style>
 </head>
 <body class="flex flex-col items-center justify-center min-h-screen">
+
+    <!-- Audio Element (Không có source cố định, sẽ được tải bằng JS/TTS) -->
+    <audio id="confession-audio" preload="auto"></audio>
+
+    <!-- Toast Message (Thông báo cho người dùng) -->
+    <div id="toast-message"></div>
 
     <!-- Container chính --><div id="main-container" class="relative z-10 text-center p-8 md:p-12 bg-white/90 backdrop-blur-md rounded-3xl shadow-3xl transition-all duration-700 w-11/12 max-w-lg border-2 border-pink-200 animate-fade-in-down">
 
@@ -103,7 +107,8 @@
                 Chắc chắn RỒI! 🥰
             </button>
 
-            <!-- Nút KHÔNG (Nút di chuyển) --><button id="no-button" onmouseover="moveNoButton()" onclick="handleNoClick()"
+            <!-- Nút KHÔNG (Nút di chuyển) -->
+            <button id="no-button" onmouseenter="moveNoButton()" onclick="handleNoClick()"
                 class="movable-button px-8 py-3 bg-gradient-to-r from-red-400 to-rose-500 text-white font-bold text-lg rounded-full shadow-md hover:from-red-500 hover:to-rose-600 transition-all duration-300 z-10 focus:outline-none focus:ring-4 focus:ring-red-300">
                 KHÔNG
             </button>
@@ -163,20 +168,31 @@
         const questionText = document.getElementById('question-text');
         const yesButton = document.getElementById('yes-button');
         const confessionContainer = document.getElementById('confession-container');
+        const confessionAudio = document.getElementById('confession-audio');
+        const toastMessage = document.getElementById('toast-message');
         
         // Gemini API Constants and Elements
         const apiKey = "";
-        const apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=";
+        const LLM_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=";
+        const TTS_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=";
         const complimentDisplay = document.getElementById('gemini-compliment');
         const generateButton = document.getElementById('generate-button');
         const dateIdeaDisplay = document.getElementById('gemini-date-idea');
         const dateIdeaButton = document.getElementById('date-idea-button');
 
-
         let moveCount = 0; // Đếm số lần nút KHÔNG bị di chuyển
         const maxMoves = 6; // Số lần di chuyển trước khi chuyển sang màn tỏ tình
 
         // --- HÀM HỖ TRỢ CHUNG ---
+
+        // Hàm hiển thị Toast Message
+        function showToast(message) {
+            toastMessage.textContent = message;
+            toastMessage.classList.add('show');
+            setTimeout(() => {
+                toastMessage.classList.remove('show');
+            }, 4000); // Ẩn sau 4 giây
+        }
 
         // Hàm hiển thị trạng thái Loading
         function showLoading(element, text = "Đang tải...") {
@@ -206,6 +222,101 @@
             }
         }
         
+        // --- CÁC HÀM XỬ LÝ AUDIO (PCM to WAV) ---
+
+        // Hàm chuyển Base64 sang ArrayBuffer
+        function base64ToArrayBuffer(base64) {
+            const binaryString = atob(base64);
+            const len = binaryString.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            return bytes.buffer;
+        }
+
+        // Hàm chuyển PCM 16-bit thành WAV Blob
+        function pcmToWav(pcm16Data, sampleRate) {
+            const numChannels = 1;
+            const bytesPerSample = 2; // 16-bit PCM
+            const pcmData = new DataView(pcm16Data.buffer);
+            const pcmLength = pcmData.byteLength;
+            const buffer = new ArrayBuffer(44 + pcmLength); // 44 bytes for WAV header
+
+            const view = new DataView(buffer);
+            let offset = 0;
+
+            // RIFF chunk
+            view.setUint32(offset, 0x52494646, false); offset += 4; // "RIFF"
+            view.setUint32(offset, 36 + pcmLength, true); offset += 4; // ChunkSize
+            view.setUint32(offset, 0x57415645, false); offset += 4; // "WAVE"
+
+            // FMT chunk
+            view.setUint32(offset, 0x666d7420, false); offset += 4; // "fmt "
+            view.setUint32(offset, 16, true); offset += 4; // Subchunk1Size (16 for PCM)
+            view.setUint16(offset, 1, true); offset += 2; // AudioFormat (1 for PCM)
+            view.setUint16(offset, numChannels, true); offset += 2; // NumChannels
+            view.setUint32(offset, sampleRate, true); offset += 4; // SampleRate
+            view.setUint32(offset, sampleRate * numChannels * bytesPerSample, true); offset += 4; // ByteRate
+            view.setUint16(offset, numChannels * bytesPerSample, true); offset += 2; // BlockAlign
+            view.setUint16(offset, 16, true); offset += 2; // BitsPerSample
+
+            // DATA chunk
+            view.setUint32(offset, 0x64617461, false); offset += 4; // "data"
+            view.setUint32(offset, pcmLength, true); offset += 4; // Subchunk2Size
+
+            // Write PCM data
+            for (let i = 0; i < pcmLength; i++) {
+                view.setInt8(offset + i, pcmData.getInt8(i));
+            }
+
+            return new Blob([view], { type: 'audio/wav' });
+        }
+
+        // Hàm gọi TTS API và trả về URL audio
+        async function generateTtsAudio(textToSpeak) {
+            showToast("Đang tạo lời tỏ tình bằng giọng nói... 🎤");
+            const ttsPayload = {
+                contents: [{
+                    parts: [{ text: `Say in a gentle and sincere tone: ${textToSpeak}` }]
+                }],
+                generationConfig: {
+                    responseModalities: ["AUDIO"],
+                    speechConfig: {
+                        // Sử dụng giọng Kore (một giọng nam rõ ràng, phù hợp cho tỏ tình)
+                        voiceConfig: { prebuiltVoiceConfig: { voiceName: "Kore" } }
+                    }
+                },
+            };
+
+            try {
+                const result = await fetchWithRetry(`${TTS_API_URL}${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(ttsPayload)
+                });
+
+                const part = result?.candidates?.[0]?.content?.parts?.[0];
+                const audioData = part?.inlineData?.data;
+                const mimeType = part?.inlineData?.mimeType;
+
+                if (audioData && mimeType && mimeType.startsWith("audio/L16")) {
+                    // L16 là PCM 16-bit. Cần trích xuất sample rate
+                    const rateMatch = mimeType.match(/rate=(\d+)/);
+                    const sampleRate = rateMatch ? parseInt(rateMatch[1], 10) : 24000; // Mặc định 24000 nếu không tìm thấy
+
+                    const pcmBuffer = base64ToArrayBuffer(audioData);
+                    const wavBlob = pcmToWav(new Int16Array(pcmBuffer), sampleRate);
+                    return URL.createObjectURL(wavBlob);
+                } else {
+                    return null; // Lỗi định dạng TTS
+                }
+            } catch (error) {
+                console.error("TTS API call failed:", error);
+                return null;
+            }
+        }
+        
         // --- GEMINI API: TẠO LỜI NGỌT NGÀO (Pre-Confession) ---
         async function generateCompliment() {
             showLoading(complimentDisplay, "Đang nghĩ lời ngọt ngào... 💖");
@@ -220,7 +331,7 @@
             };
 
             try {
-                const result = await fetchWithRetry(`${apiUrl}${apiKey}`, {
+                const result = await fetchWithRetry(`${LLM_API_URL}${apiKey}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
@@ -254,7 +365,7 @@
             };
 
             try {
-                const result = await fetchWithRetry(`${apiUrl}${apiKey}`, {
+                const result = await fetchWithRetry(`${LLM_API_URL}${apiKey}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
@@ -330,13 +441,22 @@
             noButton.style.transform = 'translate(-50%, -50%)';
         }
 
-        // Xử lý khi bấm nút KHÔNG (Tránh sự cố)
+        // Xử lý khi bấm nút KHÔNG (Tránh sự cố) - ĐÃ CẢI TIẾN
         function handleNoClick() {
-            questionText.textContent = "Không bấm được đâu! Phải bấm CÓ cơ! 🥰";
+            showToast("❌ Không được bấm nút KHÔNG! Bạn chỉ có thể bấm nút CÓ thôi! 😉");
+            // Không thay đổi questionText để tránh ghi đè lên thông báo từ onmouseenter
         }
 
         // Xử lý khi bấm nút CÓ (Mục tiêu)
         function handleYesClick() {
+            // Đảm bảo âm thanh phát khi tương tác
+            if (confessionAudio.src) {
+                confessionAudio.play().catch(error => {
+                    console.error("Audio playback failed on YES click:", error);
+                });
+            }
+
+
             // Ẩn nội dung hiện tại và hiển thị lời tỏ tình
             mainContainer.classList.add('opacity-0', 'scale-90');
             setTimeout(() => {
@@ -352,7 +472,34 @@
             }, 500);
         }
 
-        // Thiết lập vị trí ban đầu cho nút KHÔNG khi tải trang
+        // --- XỬ LÝ AUTOPLAY KHI TẢI TRANG (Đã tích hợp TTS) ---
+        async function playAudioOnLoad() {
+            confessionAudio.volume = 0.8; 
+            
+            // 1. Generate TTS Audio for the message "tôi yêu trang đàm ạ"
+            const audioUrl = await generateTtsAudio("tôi yêu trang đàm ạ");
+
+            if (audioUrl) {
+                confessionAudio.src = audioUrl;
+
+                // 2. Try to play it
+                confessionAudio.play()
+                    .then(() => {
+                        showToast("🎶 Lời tỏ tình 'tôi yêu trang đàm ạ' đã được phát tự động. Rất lãng mạn!");
+                    })
+                    .catch(error => {
+                        // 3. Autoplay blocked -> Show toast and rely on YES button click
+                        showToast("🔇 Trình duyệt đã chặn tự động phát. Đừng lo, âm thanh sẽ phát khi bạn bấm CHẮC CHẮN RỒI! 🥰");
+                        console.error("Autoplay blocked:", error);
+                    });
+            } else {
+                showToast("⚠️ Lỗi tạo âm thanh TTS. Vấn đề mạng hoặc API.");
+            }
+        }
+        // ------------------------------------
+
+
+        // Thiết lập vị trí ban đầu cho nút KHÔNG và chạy Audio khi tải trang
         window.onload = () => {
              const yesRect = yesButton.getBoundingClientRect();
              const mainRect = mainContainer.getBoundingClientRect();
@@ -361,6 +508,9 @@
              noButton.style.top = `${yesRect.top + yesRect.height / 2 - noButton.offsetHeight / 2 - mainRect.top}px`;
              noButton.style.position = 'absolute';
              noButton.style.transform = 'none';
+
+             // CHẠY AUDIO KHI TẢI TRANG
+             playAudioOnLoad();
         }
 
         // Các keyframes tùy chỉnh (có thể thêm vào file CSS riêng hoặc thẻ <style>)
